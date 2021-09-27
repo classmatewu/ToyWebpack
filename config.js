@@ -4,7 +4,7 @@ module.exports = {
     /**
      * 入口文件
      */
-    entry : './test/index.js',
+    entry : './modules/index.js',
 
     /**
      * 打包出口
