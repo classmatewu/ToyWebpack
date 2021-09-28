@@ -1,6 +1,7 @@
 const fs = require('fs')
 const parse = require('@babel/parser')
 const { default: traverse } = require('@babel/traverse')
+const { transformFromAst } = require('@babel/core')
 
 class ToyWebpack {
   constructor(options) {
@@ -15,7 +16,7 @@ class ToyWebpack {
    */
   run() {
     console.log('run ToyWebpack')
-    this._parseModule(this.entry)
+    const {dep, code} = this._parseModule(this.entry)
   }
 
   /**
@@ -24,27 +25,33 @@ class ToyWebpack {
   _parseModule(modulePath) {
     // 读取module文件，并输出为utf-8编码格式的字符串
     const moduleStr = fs.readFileSync(modulePath, 'utf-8')
+
     // 利用babel/parse将源码转换为ast
     const ast = parse.parse(moduleStr, {
       sourceType: "module",
     })
-    // 利用
+
+    // 利用traverse遍历ast节点，而不用去类似`ast.program.body`这样去遍历
     const dep = []
     traverse(ast, {
       ImportDeclaration({node}) {
         const depPath = node?.source?.value
         dep.push(depPath)
       },
-      VariableDeclaration({node}) {
-        console.log(node);
-      }
-    });
-    // console.log(ast.program.body);
-    console.log(dep);
+      // TODO 添加 cjs、amd 模块的打包的方式
+      // VariableDeclaration({node}) {
+      //   console.log(node);
+      // }
+    })
+
+    // ast转换为源码，并将原先的es6+语法转换为es5语法
+    const { code } = transformFromAst(ast, null, {
+      presets: ['@babel/preset-env']
+    })
 
     return {
       dep,
-      // code,
+      code,
     }
   }
 }
