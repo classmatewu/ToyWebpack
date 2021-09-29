@@ -1,4 +1,5 @@
 const fs = require('fs')
+const path = require('path')
 const parse = require('@babel/parser')
 const { default: traverse } = require('@babel/traverse')
 const { transformFromAst } = require('@babel/core')
@@ -16,15 +17,17 @@ class ToyWebpack {
    */
   run() {
     console.log('run ToyWebpack')
-    const {dep, code} = this._parseModule(this.entry)
+    const chunk = this._getChunk(this.entry)
+    console.log('---chunk---', chunk);
   }
 
   /**
    * @description 解析模块，做两件事情，一是获取依赖，二是获取模块源码
+   * @param {string} moduleAbsPath 要解析的模块的绝对路径，注意是绝对路径
    */
-  _parseModule(modulePath) {
+  _parseModule(moduleAbsPath) {
     // 读取module文件，并输出为utf-8编码格式的字符串
-    const moduleStr = fs.readFileSync(modulePath, 'utf-8')
+    const moduleStr = fs.readFileSync(moduleAbsPath, 'utf-8')
 
     // 利用babel/parse将源码转换为ast
     const ast = parse.parse(moduleStr, {
@@ -32,11 +35,13 @@ class ToyWebpack {
     })
 
     // 利用traverse遍历ast节点，而不用去类似`ast.program.body`这样去遍历
-    const dep = []
+    const dep = {}
     traverse(ast, {
       ImportDeclaration({node}) {
-        const depPath = node?.source?.value
-        dep.push(depPath)
+        const depOriginPath = node?.source?.value // 可能是绝对路径，也可能是相对路径
+        const depAbsPath = path.resolve(moduleAbsPath, `../${depOriginPath}`) // 将depOriginPath转为绝对路径
+        console.log('---depAbsPath---', depOriginPath, depAbsPath);
+        dep[depOriginPath] = depAbsPath
       },
       // TODO 添加 cjs、amd 模块的打包的方式
       // VariableDeclaration({node}) {
@@ -53,6 +58,32 @@ class ToyWebpack {
       dep,
       code,
     }
+  }
+
+  /**
+   * @description 根据entry的dep，进行dfs，生成module集合
+   */
+  _getChunk(entryOriginPath) {
+    // 先解析入口模块
+    const entryAbsPath = path.resolve(__dirname, entryOriginPath)
+    console.log('---entryAbsPath---', entryOriginPath, entryAbsPath);
+    const {dep: entryDep, code: entryCode} = this._parseModule(entryAbsPath)
+    const depChain = [entryDep]
+    
+    // 按照入口模块的dep，进行dfs，生成module集合
+    // chunk的key是depOriginPath，value是module code
+    const chunk = {}
+    chunk[entryOriginPath] = entryCode
+    for (let i = 0; i < depChain.length; i++) {
+      Object.keys(depChain[i]).forEach(curModuleOriginPath => {
+        const curModuleAbsPath = depChain[i][curModuleOriginPath]
+        const {dep: curModuleDep, code: curModuleCode} = this._parseModule(curModuleAbsPath)
+        chunk[curModuleOriginPath] = curModuleCode
+        depChain.push(curModuleDep)
+      })
+    }
+
+    return chunk
   }
 }
 
