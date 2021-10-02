@@ -4,7 +4,8 @@
   "description": "手写实现一个迷你的webpack",
   "main": "ToyWebpack.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "node ./app.js",
+    "test": "node ./dist/bundle.js"
   },
   "repository": {
     "type": "git",
