@@ -1,9 +1,9 @@
 /**
  * @add es6 module notes
- * 写esm的import时猜了一下坑：
+ * 写esm的import时踩了一下坑：
  * - 错误写法：import a from './a.js';
  * - 正确写法：import {a} from './a.js';
- * 看了一下./bundle.js文件打包产物源码，一下子恍然大悟，原来export会导出一个export对象，这个对象为 
+ * 看了一下./bundle.js文件打包产物源码，一下子恍然大悟，原来export会导出一个exports对象，这个对象为 
  * {
  *    __esModule: true, // 表明这是个es6 module
  *    key: value, // 我们导出的键值对key-value
